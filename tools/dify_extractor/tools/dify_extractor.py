@@ -5,6 +5,7 @@ from typing import Any
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
+from tools.archive_extractor import ArchiveExtractor
 from tools.csv_extractor import CSVExtractor
 from tools.excel_extractor import ExcelExtractor
 from tools.html_extractor import HtmlExtractor
@@ -37,6 +38,16 @@ class DifyExtractorTool(Tool):
             extractor = PPTXExtractor(self, file_bytes, file_name)
         elif file_extension == ".csv":
             extractor = CSVExtractor(file_bytes, file_name, autodetect_encoding=True)
+        elif file_extension in {".zip", ".tar", ".gz", ".rar", ".tar.gz", ".tar.bz2", ".tgz"}:
+            archive_extractor = ArchiveExtractor(file_bytes, file_name)
+            extractor_result = archive_extractor.extract()
+            if extractor_result.documents:
+                yield self.create_text_message(extractor_result.md_content)
+                yield self.create_variable_message("documents", extractor_result.documents)
+                return
+            else:
+                yield self.create_text_message("No extractable text content found in the archive.")
+                return
         else:
             # txt
             extractor = TextExtractor(file_bytes, file_name, autodetect_encoding=True)
